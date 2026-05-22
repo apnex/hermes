@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-config
+  namespace: hermes
+data:
+  config.yaml.tpl: |
+    model:
+      provider: custom
+      base_url: @LITELLM_BASE_URL@
+      default: @LITELLM_MODEL@
+      key_env: LITELLM_API_KEY
