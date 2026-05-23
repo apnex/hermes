@@ -20,6 +20,12 @@ spec:
       # cluster-admin SA — kubectl in pod auto-detects in-cluster config
       # via the auto-mounted token at /var/run/secrets/kubernetes.io/...
       serviceAccountName: hermes-admin
+      # fsGroup 10000 (= hermes gid) so Secret-mounted files (the SSH key)
+      # are group-readable by the bot. OnRootMismatch avoids recursive chown
+      # on every restart for the existing PVC contents.
+      securityContext:
+        fsGroup: 10000
+        fsGroupChangePolicy: OnRootMismatch
       initContainers:
         - name: seed-config
           image: busybox:1.36
