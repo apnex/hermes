@@ -1,0 +1,24 @@
+#!/bin/bash
+## hermes-tui — attach an interactive Hermes session (or any hermes
+##              subcommand) to the running pod, sharing its persistent state.
+## Usage:  ./hermes-tui [hermes-subcommand args...]
+## Env:    NAMESPACE  (default: hermes)
+##         SELECTOR   (default: app=hermes)
+##         HERMES_BIN (default: /opt/hermes/.venv/bin/hermes)
+set -e
+
+NAMESPACE="${NAMESPACE:-hermes}"
+SELECTOR="${SELECTOR:-app=hermes}"
+HERMES_BIN="${HERMES_BIN:-/opt/hermes/.venv/bin/hermes}"
+
+POD=$(kubectl -n "${NAMESPACE}" get pod -l "${SELECTOR}" \
+	--field-selector=status.phase=Running \
+	-o jsonpath='{.items[0].metadata.name}')
+
+if [[ -z "${POD}" ]]; then
+	echo "Error: no Running pod found for ${SELECTOR} in namespace ${NAMESPACE}" >&2
+	exit 1
+fi
+
+echo "Attaching to ${POD} → ${HERMES_BIN} $*" >&2
+exec kubectl -n "${NAMESPACE}" exec -it "${POD}" -- "${HERMES_BIN}" "$@"
