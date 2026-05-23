@@ -10,3 +10,14 @@ data:
       base_url: "@LITELLM_BASE_URL@"
       default: "@LITELLM_MODEL@"
       api_key: "@LITELLM_API_KEY@"
+
+    auxiliary:
+      vision:
+        provider: "main"
+        model: "smart-fast"
+      web_extract:
+        provider: "main"
+        model: "smart-fast"
+      session_search:
+        provider: "main"
+        model: "smart-fast"
