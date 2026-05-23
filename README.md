@@ -1,117 +1,114 @@
 # hermes
 
-GitOps-deployed [Hermes agent](https://github.com/NousResearch/hermes-agent) for
-Kubernetes. Generic, reusable; **no operator-specific values are committed.**
+GitOps-friendly deployment of the [Hermes agent](https://github.com/NousResearch/hermes-agent)
+for any Kubernetes cluster. Generic, reusable — no operator-specific values committed.
 
-## What this deploys
+Exposes Hermes's **OpenAI-compatible API** on `:8642` (bearer-token guarded) and **web
+dashboard** on `:9119`.
 
-- `Deployment` running `nousresearch/hermes-agent` in service mode (`hermes gateway run`).
-- `PersistentVolumeClaim` for `/opt/data` (Hermes's skills, sessions, memory).
-- `ConfigMap` holding a `config.yaml` *template* (rendered into the PVC by an init container on every pod start).
-- `ClusterIP` `Service` exposing `:8642` (OpenAI-compatible API) + `:9119` (web dashboard).
+**Requirements:** Kubernetes (with `kubectl` access) + an OpenAI-compatible LLM endpoint
+(e.g. a LiteLLM router).
 
-All operator-supplied values (LiteLLM base URL, model name, API key, API server key) live
-in a Kubernetes `Secret` (`hermes-secrets`) created out-of-band by `./set-secret` — they
-are never committed.
+## Install
 
-## Prerequisites
+### 1. Clone
 
-- A Kubernetes cluster with `kubectl` access.
-- An OpenAI-compatible LLM endpoint (e.g. a LiteLLM router) — base URL (must include the OpenAI-style `/v1` path), model ID, API key.
-- A GitOps tool (point Argo CD at `manifests/`; it auto-detects Kustomize).
+```sh
+git clone https://github.com/apnex/hermes && cd hermes
+```
 
-## Deploy
+### 2. Set the Secret
 
-1. **Create the Secret.** Export four env vars and run `./set-secret`:
+Edit the four values to match your LLM endpoint, then run `./set-secret`:
 
-   ```sh
-   export LITELLM_BASE_URL="https://your-litellm-router/v1"
-   export LITELLM_MODEL="your-default-model-id"
-   export LITELLM_API_KEY="your-router-api-key"
-   export API_SERVER_KEY="$(openssl rand -hex 32)"   # bearer token for :8642
-   ./set-secret
-   ```
+```sh
+export LITELLM_BASE_URL="https://your-llm-router/v1"   # OpenAI-compatible endpoint (with /v1)
+export LITELLM_MODEL="your-default-model"              # main model alias
+export LITELLM_API_KEY="your-llm-api-key"              # provider key
+export API_SERVER_KEY="$(openssl rand -hex 32)"        # random bearer token for :8642
 
-   Creates the `hermes` namespace if absent, then applies the `hermes-secrets` Secret.
+./set-secret
+```
 
-2. **Point your GitOps tool at `manifests/`.** Argo CD example:
+Creates the `hermes` namespace and applies the `hermes-secrets` Secret.
 
-   ```yaml
-   apiVersion: argoproj.io/v1alpha1
-   kind: Application
-   metadata: { name: hermes, namespace: argocd }
-   spec:
-     project: default
-     source:
-       repoURL: https://github.com/apnex/hermes
-       targetRevision: main
-       path: manifests
-     destination: { server: https://kubernetes.default.svc, namespace: hermes }
-     syncPolicy:
-       automated: { selfHeal: true, prune: true }
-       syncOptions: [CreateNamespace=true]
-   ```
+### 3. Deploy
 
-3. **Verify.**
+**Pick one.**
 
-   `kubectl -n hermes get pods` should show `hermes-…` Running. Then, since the Service
-   is `ClusterIP`, port-forward to reach the API from your shell:
+**(a) Direct — no GitOps:**
 
-   ```sh
-   kubectl -n hermes port-forward svc/hermes 8642:8642 &
-   curl -H "Authorization: Bearer ${API_SERVER_KEY}" http://localhost:8642/v1/models
-   ```
+```sh
+kubectl apply -k manifests/
+```
 
-   That should return the models your LiteLLM router exposes.
+Re-run after any edits.
+
+**(b) With Argo CD:**
+
+```sh
+kubectl apply -f - <<'EOF'
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hermes
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/apnex/hermes
+    targetRevision: main
+    path: manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hermes
+  syncPolicy:
+    automated: { selfHeal: true, prune: true }
+    syncOptions: [CreateNamespace=true]
+EOF
+```
+
+### 4. Verify
+
+```sh
+kubectl -n hermes port-forward svc/hermes 8642:8642 &
+curl -H "Authorization: Bearer $API_SERVER_KEY" http://localhost:8642/v1/models
+```
+
+Should list your router's models.
 
 ## Interact with the agent
 
-The companion `hermes-tui` script attaches an interactive Hermes session to the running
-pod, sharing the deployed agent's persistent state (skills, sessions, memory):
+`./hermes-tui` opens an interactive Hermes session inside the deployed pod (shares the
+agent's skills, sessions, memory):
 
 ```sh
-./hermes-tui                                    # open the TUI
-./hermes-tui chat -q "say hi"                   # one-shot subcommand passthrough
-NAMESPACE=hermes-staging ./hermes-tui           # override namespace
+./hermes-tui                       # open the TUI
+./hermes-tui chat -q "say hi"      # one-shot subcommand passthrough
 ```
 
-Under the hood it `kubectl exec -it`s into the deployed pod and runs the venv's `hermes`
-binary. Coexists with the gateway server (both share `/opt/data`).
+## Updating
 
-## Exposure
-
-The repo ships a `ClusterIP` Service — portable, works on any cluster. To expose Hermes
-externally, add your own `Ingress`, `NodePort`, `kubectl port-forward`, or LoadBalancer
-overlay on top — don't fork, overlay.
-
-## Updating configuration
-
-The init container regenerates `/opt/data/config.yaml` from the ConfigMap template and
-the operator Secret **on every pod start**.
-
-- **To change a templated *value*** (`base_url`, model name, API key, API server key):
-  update `hermes-secrets` — re-run `./set-secret` with new env vars — and bounce the pod
-  (`kubectl -n hermes rollout restart deploy/hermes`).
-- **To change the *template itself*** (e.g. `manifests/config.yaml.tpl`): edit + push.
-  The rollout happens automatically — Kustomize's `configMapGenerator` appends a
-  content-hash suffix to the ConfigMap name, so any edit produces a new ConfigMap name,
-  which changes the Deployment's volume reference, which Kubernetes treats as a
-  Deployment spec change and rolls out a new pod. No manual restart needed.
-
-Hermes still owns other state on the PVC at runtime (skills, sessions, memories);
-changes to those persist across restarts as usual. To tweak fields Hermes manages
-itself, `kubectl exec` into the pod and use `hermes config set …` (those values live
-outside the regenerated template).
+- **Secret values change** (rotate keys, switch model): re-run `./set-secret`, then
+  `kubectl -n hermes rollout restart deploy/hermes`.
+- **Template / manifest change**: re-run `kubectl apply -k manifests/` (direct) or push
+  the commit (Argo CD). Kustomize's content-hash on the ConfigMap auto-rolls the pod.
 
 ## Notes
 
-- **Auxiliary-task model alias.** The template configures all ten of Hermes's auxiliary
-  tasks (title generation, vision, compression, session search, …) to route via a named
-  `litellm` provider with `model: "smart-fast"` — an alias *this template's author* uses
-  for their LiteLLM router's lightweight model. **If your router exposes different model
-  aliases**, edit `manifests/config.yaml.tpl` and change `smart-fast` to one of yours
-  (e.g. `gpt-4o-mini`, `claude-haiku-4.5`, `gemini-2.5-flash`, …).
-- **`temperature` requirement.** Hermes always sends `temperature` on auxiliary calls,
-  so the alias you choose must point at a model that **accepts** it (i.e. a non-reasoning
-  model). Reasoning models (e.g. `claude-*-thinking`, `o1`-family) will reject the call
-  with `temperature is deprecated for this model`.
+- **Auxiliary model alias.** The template uses `model: "smart-fast"` via your router for
+  Hermes's ten auxiliary tasks (title generation, vision, compression, …). Change it in
+  `manifests/config.yaml.tpl` if your router uses different aliases (e.g.
+  `gpt-4o-mini`, `claude-haiku-4.5`, `gemini-2.5-flash`).
+- **`temperature` requirement.** Hermes sends `temperature` on auxiliary calls, so the
+  chosen aux alias must accept it (i.e. a non-reasoning model).
+- **External exposure.** The Service is `ClusterIP`. Add your own Ingress / NodePort /
+  port-forward / LoadBalancer overlay for LAN/WAN access — don't fork, overlay.
+
+## What this deploys
+
+`Deployment` (single replica, stateful) + `PVC` (`/opt/data` — Hermes's skills,
+sessions, memory) + `ConfigMap` (`config.yaml` rendered from a template on every pod
+start; hashed by Kustomize for auto-rollout on edits) + `ClusterIP` `Service`. All
+operator-supplied values live in the out-of-band `hermes-secrets` Secret (4 keys: base
+URL, model, API key, API server bearer token).
