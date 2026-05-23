@@ -55,7 +55,8 @@ spec:
               mountPath: /seed
       containers:
         - name: hermes
-          image: nousresearch/hermes-agent:v2026.5.16
+          image: localhost/hermes-agent:v2026.5.16-voice
+          imagePullPolicy: IfNotPresent
           args: ["gateway", "run"]
           ports:
             - containerPort: 8642
@@ -74,9 +75,19 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: API_SERVER_KEY
+            # Audio I/O — talk to PipeWire's Pulse socket on the host.
+            # Host UID 1000 (apnex) runs pipewire-pulse; the socket at
+            # /run/user/1000/pulse/native is world-rw, so the container
+            # (running as hermes/UID 10000) can connect without a cookie.
+            - name: PULSE_SERVER
+              value: "unix:/run/user/1000/pulse/native"
+            - name: XDG_RUNTIME_DIR
+              value: "/run/user/1000"
           volumeMounts:
             - name: data
               mountPath: /opt/data
+            - name: pulse-socket
+              mountPath: /run/user/1000
           resources:
             requests:
               cpu: "500m"
@@ -103,3 +114,10 @@ spec:
         - name: config-tpl
           configMap:
             name: hermes-config
+        # PipeWire / Pulse runtime directory from the host. Single-node
+        # only — for multi-node, hermes must be pinned (nodeSelector) to
+        # the node running PipeWire under UID 1000.
+        - name: pulse-socket
+          hostPath:
+            path: /run/user/1000
+            type: Directory
