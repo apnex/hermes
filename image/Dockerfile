@@ -7,6 +7,8 @@
 #   - sounddevice, numpy  mic capture + audio buffer manipulation
 #   - faster-whisper      local STT engine; model auto-downloads to ~/.cache on first use
 #                         ($HOME=/opt/data for the hermes user, so the model lands on the PVC)
+#   - discord.py          Hermes Discord gateway adapter (optional — only used when
+#                         DISCORD_BOT_TOKEN is set in the Secret)
 #
 # Note: upstream strips `pip` from the venv to keep it lean — use `uv` (which is
 # pre-installed at /usr/local/bin/uv) for any additional Python packages.
@@ -25,6 +27,7 @@ USER hermes
 RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache \
       sounddevice \
       numpy \
-      faster-whisper
+      faster-whisper \
+      discord.py
 
 USER root
