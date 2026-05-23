@@ -94,6 +94,40 @@ agent's skills, sessions, memory):
 - **Template / manifest change**: re-run `kubectl apply -k manifests/` (direct) or push
   the commit (Argo CD). Kustomize's content-hash on the ConfigMap auto-rolls the pod.
 
+## Uninstall / Reset
+
+> **Warning:** Deleting the PVC wipes Hermes's persistent state — sessions, memory,
+> skills. No undo. Back up `/opt/data` first if you want any of it.
+
+**(a) Direct — no GitOps:**
+
+```sh
+kubectl delete -k manifests/
+kubectl delete namespace hermes   # also clears the out-of-band Secret
+```
+
+**(b) With Argo CD:**
+
+```sh
+kubectl -n argocd delete application hermes --wait=true   # cascades children
+kubectl delete namespace hermes
+```
+
+If you deploy via an ApplicationSet / app-of-apps, remove the `hermes` entry from that
+registry first — otherwise it will be recreated within seconds. If a sync races the
+namespace-terminating window and gets stuck retrying (`unable to create new content in
+namespace hermes because it is being terminated`), force a fresh sync once the
+namespace is gone:
+
+```sh
+kubectl -n argocd patch application hermes --type=merge \
+  -p '{"operation":{"sync":{"revision":"HEAD","prune":true}}}'
+```
+
+To reinstall: repeat the install steps above — `./set-secret` recreates the namespace
+and Secret in one go, and the GitOps controller (or `kubectl apply -k manifests/`)
+brings the rest back.
+
 ## Notes
 
 - **Auxiliary model alias.** The template uses `model: "smart-fast"` via your router for
