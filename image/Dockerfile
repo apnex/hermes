@@ -11,6 +11,8 @@
 #                         DISCORD_BOT_TOKEN is set in the Secret)
 #   - PyNaCl              RTP voice encryption (required for voice channel join)
 #   - edge-tts            Microsoft Edge TTS — bot's voice output
+#   - davey               DAVE E2EE library — discord.py >= 2.5 requires it
+#                         for voice channel support (without it: "voice will NOT be supported")
 #
 # Note: upstream strips `pip` from the venv to keep it lean — use `uv` (which is
 # pre-installed at /usr/local/bin/uv) for any additional Python packages.
@@ -32,6 +34,7 @@ RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache \
       faster-whisper \
       discord.py \
       PyNaCl \
-      edge-tts
+      edge-tts \
+      davey
 
 USER root
