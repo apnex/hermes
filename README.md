@@ -104,18 +104,29 @@ included). One extra env var to `./set-secret` — that's it.
 5. Open the generated URL in a browser → invite the bot to a server you control
    (a personal playground server is fine).
 
-### 2. Inject the token
+### 2. Find your own Discord user ID
+
+The bot ignores DMs from any user not on its allowlist (security default — no
+unauthenticated access). To allow yourself:
+
+1. Discord client → **User Settings** → **Advanced** → toggle **Developer Mode** ON.
+2. Right-click your own avatar → **Copy User ID** (an 18-digit number).
+
+For multiple users, comma-separate (e.g. `111111111111111111,222222222222222222`).
+
+### 3. Inject the token and allowlist
 
 ```sh
-export DISCORD_BOT_TOKEN='your-bot-token-from-step-2'
-./set-secret                                       # idempotent; adds the new key
-kubectl -n hermes rollout restart deploy/hermes    # pick up the new env binding
+export DISCORD_BOT_TOKEN='your-bot-token-from-step-1'
+export DISCORD_ALLOWED_USERS='your-discord-user-id-from-step-2'
+./set-secret                                       # idempotent; adds the new keys
+kubectl -n hermes rollout restart deploy/hermes    # pick up the new env bindings
 ```
 
-The deployment reads `DISCORD_BOT_TOKEN` from the Secret via an `optional: true`
-`secretKeyRef`, so Discord stays dormant if the key isn't set — fully opt-in.
+Both env vars are read from the Secret via `optional: true` `secretKeyRef`, so
+Discord stays dormant when either is missing — fully opt-in.
 
-### 3. Verify
+### 4. Verify
 
 ```sh
 kubectl -n hermes logs -l app=hermes --tail=30 | grep -i discord

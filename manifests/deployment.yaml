@@ -82,6 +82,14 @@ spec:
                   name: hermes-secrets
                   key: DISCORD_BOT_TOKEN
                   optional: true
+            # DM allowlist — comma-separated Discord user IDs. Without this
+            # the bot rejects every DM as unauthorized.
+            - name: DISCORD_ALLOWED_USERS
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: DISCORD_ALLOWED_USERS
+                  optional: true
             # Audio I/O — talk to PipeWire's Pulse socket on the host.
             # Host UID 1000 (apnex) runs pipewire-pulse; the socket at
             # /run/user/1000/pulse/native is world-rw, so the container
