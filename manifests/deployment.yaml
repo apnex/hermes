@@ -74,11 +74,6 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: API_SERVER_KEY
-            - name: LITELLM_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: hermes-secrets
-                  key: LITELLM_API_KEY
           volumeMounts:
             - name: data
               mountPath: /opt/data

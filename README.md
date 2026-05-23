@@ -72,7 +72,11 @@ overlay on top — don't fork, overlay.
 
 ## Configuration after first boot
 
-Hermes **owns** `/opt/data/config.yaml` once seeded and may mutate it at runtime.
-Re-running with a changed template / changed `LITELLM_*` env vars **does not** update the
-live file. To change config on a running instance: `kubectl exec` in and use
-`hermes config set`, or recreate the PVC.
+The init container **regenerates `/opt/data/config.yaml` from the ConfigMap template
+and the operator Secret on every pod start**, so the supported way to change any of the
+templated fields (`provider`, `base_url`, model name, API key) is: update `hermes-secrets`
+(re-run `./set-secret` with new env vars) and bounce the pod. Hermes still owns other
+state on the PVC at runtime (skills, sessions, memories); changes to those persist
+across restarts as usual. To tweak fields Hermes manages itself, `kubectl exec` into
+the pod and use `hermes config set …` (those values live outside the regenerated
+template).
