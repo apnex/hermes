@@ -9,6 +9,8 @@
 #                         ($HOME=/opt/data for the hermes user, so the model lands on the PVC)
 #   - discord.py          Hermes Discord gateway adapter (optional — only used when
 #                         DISCORD_BOT_TOKEN is set in the Secret)
+#   - PyNaCl              RTP voice encryption (required for voice channel join)
+#   - edge-tts            Microsoft Edge TTS — bot's voice output
 #
 # Note: upstream strips `pip` from the venv to keep it lean — use `uv` (which is
 # pre-installed at /usr/local/bin/uv) for any additional Python packages.
@@ -28,6 +30,8 @@ RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache \
       sounddevice \
       numpy \
       faster-whisper \
-      discord.py
+      discord.py \
+      PyNaCl \
+      edge-tts
 
 USER root
