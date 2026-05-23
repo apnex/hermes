@@ -13,11 +13,42 @@ data:
 
     auxiliary:
       vision:
-        provider: "main"
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
         model: "smart-fast"
       web_extract:
-        provider: "main"
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
+        model: "smart-fast"
+      compression:
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
         model: "smart-fast"
       session_search:
-        provider: "main"
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
+        model: "smart-fast"
+      skills_hub:
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
+        model: "smart-fast"
+      approval:
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
+        model: "smart-fast"
+      mcp:
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
+        model: "smart-fast"
+      title_generation:
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
+        model: "smart-fast"
+      triage_specifier:
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
+        model: "smart-fast"
+      curator:
+        base_url: "@LITELLM_BASE_URL@"
+        api_key: "@LITELLM_API_KEY@"
         model: "smart-fast"
