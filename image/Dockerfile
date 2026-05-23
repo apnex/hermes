@@ -14,6 +14,11 @@
 #   - davey               DAVE E2EE library — discord.py >= 2.5 requires it
 #                         for voice channel support (without it: "voice will NOT be supported")
 #
+# System tooling for "trusted dev on the NUC" capability:
+#   - kubectl             cluster-admin via auto-mounted ServiceAccount token
+#   - openssh-client      (already in upstream) for the `nuc` host shell wrapper
+#   - /usr/local/bin/nuc  wrapper: `nuc <cmd>` SSHes back to the host as root
+#
 # Note: upstream strips `pip` from the venv to keep it lean — use `uv` (which is
 # pre-installed at /usr/local/bin/uv) for any additional Python packages.
 FROM docker.io/nousresearch/hermes-agent:v2026.5.16
@@ -25,7 +30,26 @@ RUN apt-get update \
       libportaudio2 \
       libasound2-plugins \
       alsa-utils \
+      curl \
+      ca-certificates \
+ && curl -fsSL -o /usr/local/bin/kubectl \
+      "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+ && chmod +x /usr/local/bin/kubectl \
  && rm -rf /var/lib/apt/lists/*
+
+# Wrapper: `nuc <command>` SSHes back to the host as root, reading the bot's
+# private key from /etc/hermes-host-ssh/id_ed25519 (Secret-mounted, mode 0400).
+# Host key checking disabled — single-user LAN, acceptable trade-off.
+RUN cat > /usr/local/bin/nuc <<'EOF' \
+ && chmod +x /usr/local/bin/nuc
+#!/bin/bash
+exec ssh \
+  -i "${HERMES_HOST_SSH_KEY_PATH:-/etc/hermes-host-ssh/id_ed25519}" \
+  -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/dev/null \
+  -o LogLevel=ERROR \
+  "${HERMES_HOST_SSH_TARGET:-root@192.168.1.250}" "$@"
+EOF
 
 USER hermes
 RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache \
