@@ -19,37 +19,19 @@ spec:
     spec:
       initContainers:
         - name: seed-config
-          image: nousresearch/hermes-agent:v2026.5.16
+          image: busybox:1.36
           command:
             - /bin/sh
             - -c
             - |
-              # Seed config.yaml from template (first boot only)
-              if [ ! -f /opt/data/config.yaml ]; then
-                sed -e "s|@LITELLM_BASE_URL@|${LITELLM_BASE_URL}|g" \
-                    -e "s|@LITELLM_MODEL@|${LITELLM_MODEL}|g" \
-                    /seed/config.yaml.tpl > /opt/data/config.yaml
-                echo "seeded /opt/data/config.yaml"
-              else
-                echo "config.yaml already present; leaving as-is"
-              fi
-
-              # Seed .env from .env.example if absent (preserves Hermes's defaults)
-              if [ ! -f /opt/data/.env ]; then
-                cp /opt/hermes/.env.example /opt/data/.env
-                echo "seeded /opt/data/.env from .env.example"
-              fi
-
-              # Always inject the operator's LITELLM_API_KEY into .env
-              # (overwrite if present, append otherwise). Hermes's key_env
-              # lookup reads from the loaded .env, not container env.
-              if grep -q '^LITELLM_API_KEY=' /opt/data/.env; then
-                sed -i "s#^LITELLM_API_KEY=.*#LITELLM_API_KEY=${LITELLM_API_KEY}#" /opt/data/.env
-                echo "updated LITELLM_API_KEY in /opt/data/.env"
-              else
-                echo "LITELLM_API_KEY=${LITELLM_API_KEY}" >> /opt/data/.env
-                echo "appended LITELLM_API_KEY to /opt/data/.env"
-              fi
+              # Always regenerate config.yaml from the template + Secret values.
+              # The Secret is the source of truth for this deployment;
+              # runtime mutations are not persisted across pod restarts.
+              sed -e "s|@LITELLM_BASE_URL@|${LITELLM_BASE_URL}|g" \
+                  -e "s|@LITELLM_MODEL@|${LITELLM_MODEL}|g" \
+                  -e "s#@LITELLM_API_KEY@#${LITELLM_API_KEY}#g" \
+                  /seed/config.yaml.tpl > /opt/data/config.yaml
+              echo "wrote /opt/data/config.yaml"
           env:
             - name: LITELLM_BASE_URL
               valueFrom:

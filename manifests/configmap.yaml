@@ -6,7 +6,7 @@ metadata:
 data:
   config.yaml.tpl: |
     model:
-      provider: custom
-      base_url: @LITELLM_BASE_URL@
-      default: @LITELLM_MODEL@
-      key_env: LITELLM_API_KEY
+      provider: "custom"
+      base_url: "@LITELLM_BASE_URL@"
+      default: "@LITELLM_MODEL@"
+      api_key: "@LITELLM_API_KEY@"
