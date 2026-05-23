@@ -17,6 +17,9 @@ spec:
       labels:
         app: hermes
     spec:
+      # cluster-admin SA — kubectl in pod auto-detects in-cluster config
+      # via the auto-mounted token at /var/run/secrets/kubernetes.io/...
+      serviceAccountName: hermes-admin
       initContainers:
         - name: seed-config
           image: busybox:1.36
@@ -98,11 +101,26 @@ spec:
               value: "unix:/run/user/1000/pulse/native"
             - name: XDG_RUNTIME_DIR
               value: "/run/user/1000"
+            # Host shell — `nuc <cmd>` wrapper SSHes here as root.
+            # Activates only when hermes-host-ssh-key Secret exists.
+            - name: HERMES_HOST_SSH_TARGET
+              value: "root@192.168.1.250"
+            - name: HERMES_HOST_SSH_KEY_PATH
+              value: "/etc/hermes-host-ssh/id_ed25519"
           volumeMounts:
             - name: data
               mountPath: /opt/data
             - name: pulse-socket
               mountPath: /run/user/1000
+            # Whole /root from the host bind-mounted at the same path
+            # so file ops and ssh-execed commands see the same paths.
+            - name: host-root
+              mountPath: /root
+            # Bot's private SSH key (optional Secret). Mounted as a dir
+            # containing id_ed25519 with mode 0400.
+            - name: host-ssh-key
+              mountPath: /etc/hermes-host-ssh
+              readOnly: true
           resources:
             requests:
               cpu: "500m"
@@ -136,3 +154,17 @@ spec:
           hostPath:
             path: /run/user/1000
             type: Directory
+        # Host /root bind-mount — gives the bot direct file r/w access
+        # to all the operator's projects. Single-node only.
+        - name: host-root
+          hostPath:
+            path: /root
+            type: Directory
+        # SSH key for `nuc` wrapper (host-shell as root). Optional —
+        # pod boots without it; nuc commands fail until the operator
+        # provides HERMES_HOST_SSH_KEY via setup-host-access.sh + set-secret.
+        - name: host-ssh-key
+          secret:
+            secretName: hermes-host-ssh-key
+            optional: true
+            defaultMode: 0400
