@@ -135,6 +135,67 @@ kubectl -n hermes logs -l app=hermes --tail=30 | grep -i discord
 Look for `Discord connected as @YourBot` (or similar). DM the bot from your
 Discord client — it should reply.
 
+## Optional: host + cluster access
+
+Turn the bot into a trusted root user on the NUC plus a `cluster-admin` operator
+inside Kubernetes. Three independent capabilities:
+
+| Capability | Plumbed via |
+|---|---|
+| Read/edit anything under `/root` at native fs speed | `hostPath` mount of `/root` |
+| Run any host command as root (`npm`, `cargo`, `docker`, `systemctl`, `apt`, …) | `nuc <cmd>` wrapper → SSH to `root@NUC` |
+| Manage K8s resources (kubectl + Argo apps) | In-cluster ServiceAccount `hermes-admin` with `cluster-admin` ClusterRoleBinding |
+
+### Cluster access (always on)
+
+Already in the manifests. The `hermes-admin` ServiceAccount is created with the
+deployment and bound to `cluster-admin`. Pod processes use the auto-mounted
+token at `/var/run/secrets/kubernetes.io/serviceaccount/token`; `kubectl` in the
+pod picks it up via in-cluster config detection — no kubeconfig needed.
+
+Verify: `kubectl exec -n hermes deploy/hermes -- kubectl get pods -A` should
+list every pod in the cluster.
+
+### Host access (opt-in)
+
+The `/root` bind-mount is in the manifests but the SSH key is gated by a
+separate optional Secret. Run the helper once on the NUC as root:
+
+```sh
+./setup-host-access.sh
+```
+
+It generates an ed25519 keypair, appends the pubkey to `/root/.ssh/authorized_keys`,
+verifies SSH works locally, and prints the two-step finish:
+
+```sh
+export HERMES_HOST_SSH_KEY="$(cat /root/.config/hermes-bot/id_ed25519)"
+./set-secret
+kubectl -n hermes rollout restart deploy/hermes
+```
+
+After the pod rolls, the bot can run `nuc <command>` to execute anything on the
+host as root.
+
+### Trust posture caveats
+
+The single-user setup above is deliberately permissive. Worth knowing:
+
+1. **`/root` mount means the bot can see `.bash_history`, `.claude.json`, every
+   git repo's `.git/`, and the `hermes`/`labops` repos themselves.** If you'd
+   rather narrow this, replace the `hostPath` `path: /root` with a specific
+   subdirectory like `/root/projects` and consolidate work there.
+2. **The bot can edit `/root/.ssh/authorized_keys`**. Mostly fine, but a
+   confused bot could lock you out or add other keys. Watch git diffs if you
+   ever commit the file by accident.
+3. **`cluster-admin` lets the bot delete the cluster.** `kubectl delete ns hermes`,
+   `kubectl delete nodes obpc` — both technically possible. Hermes's command-approval
+   flow gates `rm` and `kubectl delete` but not silent edits. Narrow the
+   ClusterRoleBinding if this is a concern.
+
+To narrow K8s perms later: replace `roleRef.name: cluster-admin` in
+`manifests/serviceaccount.yaml` with a custom `ClusterRole` you author.
+
 ## Updating
 
 - **Secret values change** (rotate keys, switch model): re-run `./set-secret`, then
