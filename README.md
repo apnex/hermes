@@ -87,6 +87,43 @@ agent's skills, sessions, memory):
 ./hermes-tui chat -q "say hi"      # one-shot subcommand passthrough
 ```
 
+## Optional: Discord gateway
+
+Wire a Hermes bot that responds to your Discord DMs (voice-note transcription
+included). One extra env var to `./set-secret` — that's it.
+
+### 1. Create a Discord bot
+
+1. Open **https://discord.com/developers/applications** → **New Application** → name it.
+2. Sidebar → **Bot** → **Reset Token** → copy the token (you only see it once).
+3. Same page → **Privileged Gateway Intents** → toggle ✅ **MESSAGE CONTENT INTENT** → **Save**.
+4. Sidebar → **OAuth2** → **URL Generator**:
+   - Scopes: ✅ `bot`, ✅ `applications.commands`
+   - Bot permissions: ✅ View Channels, ✅ Send Messages, ✅ Read Message History,
+     ✅ Add Reactions, ✅ Create Public Threads
+5. Open the generated URL in a browser → invite the bot to a server you control
+   (a personal playground server is fine).
+
+### 2. Inject the token
+
+```sh
+export DISCORD_BOT_TOKEN='your-bot-token-from-step-2'
+./set-secret                                       # idempotent; adds the new key
+kubectl -n hermes rollout restart deploy/hermes    # pick up the new env binding
+```
+
+The deployment reads `DISCORD_BOT_TOKEN` from the Secret via an `optional: true`
+`secretKeyRef`, so Discord stays dormant if the key isn't set — fully opt-in.
+
+### 3. Verify
+
+```sh
+kubectl -n hermes logs -l app=hermes --tail=30 | grep -i discord
+```
+
+Look for `Discord connected as @YourBot` (or similar). DM the bot from your
+Discord client — it should reply.
+
 ## Updating
 
 - **Secret values change** (rotate keys, switch model): re-run `./set-secret`, then
