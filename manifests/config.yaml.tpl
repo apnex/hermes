@@ -32,3 +32,28 @@ stt:
     model: base              # tiny | base | small | medium | large-v3
 tts:
   provider: edge             # Microsoft Edge TTS — free, HTTPS, no key
+
+# Memory — local notes + user profile, plus Honcho as the AI-native backend.
+# Bumped from defaults (1375/2200) — single power-user, multi-session use case.
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  memory_char_limit: 3000
+  user_char_limit: 2000
+  provider: honcho
+
+# Honcho self-hosted in-cluster — AUTH_USE_AUTH=false on the server,
+# so no API key needed. recallMode=hybrid gives auto context injection
+# AND the honcho_* tools (profile/search/context/reasoning/conclude).
+honcho:
+  baseUrl: http://honcho.honcho.svc.cluster.local:8000
+  workspace: default
+  apiKey: ""
+  recallMode: hybrid
+  saveMessages: true
+  writeFrequency: async
+  contextCadence: 1
+  dialecticCadence: 2
+  dialecticReasoningLevel: low
+  dialecticDynamic: true
+  sessionStrategy: per-session
