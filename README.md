@@ -200,8 +200,26 @@ To narrow K8s perms later: replace `roleRef.name: cluster-admin` in
 
 - **Secret values change** (rotate keys, switch model): re-run `./set-secret`, then
   `kubectl -n hermes rollout restart deploy/hermes`.
-- **Template / manifest change**: re-run `kubectl apply -k manifests/` (direct) or push
-  the commit (Argo CD). Kustomize's content-hash on the ConfigMap auto-rolls the pod.
+- **Template / manifest change**:
+  - **(a) Direct:** `kubectl apply -k manifests/`
+  - **(b) With Argo CD:** `git commit && git push` (Argo reconciles on its own,
+    or `argocd app sync hermes` to force)
+
+  Kustomize's content-hash on the ConfigMap auto-rolls the pod after either path.
+
+For the geometry — how templates, the ConfigMap, the seed-config initContainer,
+and the PVC fit together — see [`manifests/README.md`](manifests/README.md).
+
+## Long-term memory
+
+This deployment ships with [Honcho](https://github.com/plastic-labs/honcho)
+as the memory backend. Tuning lives in `manifests/honcho.json.tpl` (cadences,
+depth, recall mode, peer identity); the server itself is deployed separately
+from [apnex/honcho](https://github.com/apnex/honcho).
+
+See [`docs/memory.md`](docs/memory.md) for the tuning rationale, the
+"observations are not commitments" guardrail, and what to check when memory
+recall misbehaves.
 
 ## Uninstall / Reset
 
