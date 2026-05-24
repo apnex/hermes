@@ -169,8 +169,19 @@ spec:
         # SSH key for `nuc` wrapper (host-shell as root). Optional —
         # pod boots without it; nuc commands fail until the operator
         # provides HERMES_HOST_SSH_KEY via setup-host-access.sh + set-secret.
+        #
+        # NOTE: uses `projected` (not plain `secret`) so the per-item
+        # `mode: 0400` survives the pod's fsGroup recursive chown.
+        # Plain Secret volume + defaultMode is overridden by fsGroup,
+        # producing 0440 — which OpenSSH refuses ("Permissions too open").
         - name: host-ssh-key
-          secret:
-            secretName: hermes-host-ssh-key
-            optional: true
+          projected:
             defaultMode: 0400
+            sources:
+              - secret:
+                  name: hermes-host-ssh-key
+                  optional: true
+                  items:
+                    - key: id_ed25519
+                      path: id_ed25519
+                      mode: 0400
