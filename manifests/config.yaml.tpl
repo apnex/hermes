@@ -5,22 +5,25 @@ model:
   api_key: "@LITELLM_API_KEY@"
 
 # Named providers — define once; reference by name from auxiliary tasks.
+# Key MUST match model.provider above (currently "custom") so the resolver
+# finds it. Renaming this key without updating model.provider triggers
+# "No inference provider configured" at first model call.
 providers:
-  litellm:
+  custom:
     base_url: "@LITELLM_BASE_URL@"
     api_key: "@LITELLM_API_KEY@"
 
 auxiliary:
-  vision:           { provider: litellm, model: "smart-fast" }
-  web_extract:      { provider: litellm, model: "smart-fast" }
-  compression:      { provider: litellm, model: "smart-fast" }
-  session_search:   { provider: litellm, model: "smart-fast" }
-  skills_hub:       { provider: litellm, model: "smart-fast" }
-  approval:         { provider: litellm, model: "smart-fast" }
-  mcp:              { provider: litellm, model: "smart-fast" }
-  title_generation: { provider: litellm, model: "smart-fast" }
-  triage_specifier: { provider: litellm, model: "smart-fast" }
-  curator:          { provider: litellm, model: "smart-fast" }
+  vision:           { provider: custom, model: "smart-fast" }
+  web_extract:      { provider: custom, model: "smart-fast" }
+  compression:      { provider: custom, model: "smart-fast" }
+  session_search:   { provider: custom, model: "smart-fast" }
+  skills_hub:       { provider: custom, model: "smart-fast" }
+  approval:         { provider: custom, model: "smart-fast" }
+  mcp:              { provider: custom, model: "smart-fast" }
+  title_generation: { provider: custom, model: "smart-fast" }
+  triage_specifier: { provider: custom, model: "smart-fast" }
+  curator:          { provider: custom, model: "smart-fast" }
 
 # Voice (CLI /voice command) — defaults shown explicitly for operator visibility.
 # These match Hermes's built-in defaults; override if you want a different
