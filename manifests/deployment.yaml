@@ -91,6 +91,38 @@ spec:
               mountPath: /opt/data
             - name: config-tpl
               mountPath: /seed
+        # stage-ssh-key — copy the host SSH key from its projected volume
+        # (which fsGroup relaxes to 0440 — OpenSSH refuses) into an emptyDir
+        # with explicit 0400 perms + hermes:hermes ownership. The emptyDir's
+        # root dir is then group-owned by hermes, so fsGroup's OnRootMismatch
+        # policy skips re-chmoding it on main-container start.
+        #
+        # If the Secret doesn't exist (host-access opt-in not done yet), the
+        # source file is absent and we just create an empty staging dir —
+        # `nuc` will fail at runtime but pod boots fine.
+        - name: stage-ssh-key
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              # chown the staging dir so fsGroup OnRootMismatch leaves it alone.
+              chown 10000:10000 /stage
+              chmod 0700        /stage
+              if [ -f /seed-ssh/id_ed25519 ]; then
+                install -m 0400 -o 10000 -g 10000 \
+                  /seed-ssh/id_ed25519 /stage/id_ed25519
+                echo "staged host SSH key at /stage/id_ed25519 (0400 hermes:hermes)"
+              else
+                echo "no host SSH key in Secret — nuc wrapper will be inert"
+              fi
+          volumeMounts:
+            - name: host-ssh-key-src
+              mountPath: /seed-ssh
+              readOnly: true
+            - name: host-ssh-key-staged
+              mountPath: /stage
       containers:
         - name: hermes
           image: localhost/hermes-agent:v2026.5.16-voice
@@ -151,9 +183,11 @@ spec:
             # so file ops and ssh-execed commands see the same paths.
             - name: host-root
               mountPath: /root
-            # Bot's private SSH key (optional Secret). Mounted as a dir
-            # containing id_ed25519 with mode 0400.
-            - name: host-ssh-key
+            # Bot's private SSH key. Staged into an emptyDir by the
+            # stage-ssh-key initContainer with explicit 0400 perms so
+            # OpenSSH accepts it (fsGroup would otherwise relax the
+            # projected volume to 0440).
+            - name: host-ssh-key-staged
               mountPath: /etc/hermes-host-ssh
               readOnly: true
           resources:
@@ -199,11 +233,13 @@ spec:
         # pod boots without it; nuc commands fail until the operator
         # provides HERMES_HOST_SSH_KEY via setup-host-access.sh + set-secret.
         #
-        # NOTE: uses `projected` (not plain `secret`) so the per-item
-        # `mode: 0400` survives the pod's fsGroup recursive chown.
-        # Plain Secret volume + defaultMode is overridden by fsGroup,
-        # producing 0440 — which OpenSSH refuses ("Permissions too open").
-        - name: host-ssh-key
+        # Two-volume pattern: the projected `host-ssh-key-src` mounts the
+        # raw Secret (subject to fsGroup, so it ends up 0440 — unusable);
+        # the stage-ssh-key initContainer copies it into the emptyDir
+        # `host-ssh-key-staged` with explicit 0400 perms that survive
+        # fsGroup's OnRootMismatch policy. Main container mounts the
+        # staged emptyDir, not the projected source.
+        - name: host-ssh-key-src
           projected:
             defaultMode: 0400
             sources:
@@ -214,3 +250,6 @@ spec:
                     - key: id_ed25519
                       path: id_ed25519
                       mode: 0400
+        - name: host-ssh-key-staged
+          emptyDir:
+            medium: Memory
