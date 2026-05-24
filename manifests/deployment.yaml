@@ -51,16 +51,20 @@ spec:
                   /seed/honcho.json.tpl > /opt/data/honcho.json
               echo "wrote /opt/data/honcho.json (peerName=${HERMES_PEER_NAME:-default-user})"
 
-              # Normalize ownership + perms on both rendered files. Without this,
-              # whoever runs the initContainer (root) leaves the files as root:root
-              # 0600 — which is fine while the main container also runs as root,
-              # but becomes a silent footgun the moment anything runs as the
-              # hermes user (UID 10000) and falls back to default config.
-              # Explicit chown/chmod keeps the contract predictable regardless of
-              # who reads them.
-              chown 10000:10000 /opt/data/config.yaml /opt/data/honcho.json
-              chmod 0640        /opt/data/config.yaml /opt/data/honcho.json
-              echo "normalized: 0640 hermes:hermes on both files"
+              # Lock config.yaml to read-only as defense-in-depth. The primary
+              # guarantee is HERMES_MANAGED=k3s on the main container, which makes
+              # hermes-core's save_config/set_config_value/etc. no-op cleanly
+              # (see hermes_cli/config.py::is_managed). 0444 root:root is the
+              # backstop: even if something bypasses is_managed(), the kernel
+              # refuses the write. The file MUST be world-readable because the
+              # gateway worker runs as uid 10000 (hermes), not root.
+              chown root:root /opt/data/config.yaml
+              chmod 0444      /opt/data/config.yaml
+              # honcho.json stays writable by the hermes user — the Honcho plugin
+              # legitimately persists peer metadata at runtime.
+              chown 10000:10000 /opt/data/honcho.json
+              chmod 0640        /opt/data/honcho.json
+              echo "normalized: config.yaml=0444 root:root (RO), honcho.json=0640 hermes:hermes"
           env:
             - name: LITELLM_BASE_URL
               valueFrom:
@@ -174,6 +178,16 @@ spec:
               value: "root@192.168.1.250"
             - name: HERMES_HOST_SSH_KEY_PATH
               value: "/etc/hermes-host-ssh/id_ed25519"
+            # Tell hermes-core it's running under external lifecycle management
+            # (k3s + GitOps). All save_config / set_config_value / web-UI write
+            # paths in hermes_cli/config.py gate on is_managed() and become a
+            # friendly managed_error() no-op. Source of truth is
+            # manifests/config.yaml.tpl + the seed-config initContainer; runtime
+            # mutations would be wiped on next pod restart anyway, so refusing
+            # them up-front is the honest contract. Defense-in-depth: the
+            # rendered config.yaml is also chmod 0444 root:root.
+            - name: HERMES_MANAGED
+              value: "k3s"
           volumeMounts:
             - name: data
               mountPath: /opt/data

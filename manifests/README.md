@@ -148,6 +148,46 @@ plugin needs before it has a chance to read its own file. Tuning lives in
 
 See `docs/memory.md` for the Honcho-specific tuning rationale.
 
+### 5. The rendered config.yaml is read-only — by contract and by perms
+
+`config.yaml` is GitOps-managed: the source of truth lives in
+`manifests/config.yaml.tpl` and the seed-config initContainer re-renders
+`/opt/data/config.yaml` on every pod start. Runtime mutations would be
+wiped on the next restart, so we make them impossible up-front via **two
+independent enforcement layers**:
+
+1. **`HERMES_MANAGED=k3s`** on the main container.
+   Hermes-core has a built-in "managed install" mode (see
+   `hermes_cli/config.py::is_managed`, originally for NixOS / package-manager
+   installs). When set, every code path that would persist config —
+   `save_config`, `set_config_value`, `save_env_value`, `edit_config`,
+   the web-UI `update_config` endpoint, the ACP `set_config_option`
+   handler — short-circuits to a friendly `managed_error()` no-op.
+   No FS interaction, no silent corruption, no PID-1 vs in-pod-CLI fights
+   over file ownership.
+
+2. **`chmod 0444 root:root`** on the rendered file.
+   The seed-config initContainer locks `/opt/data/config.yaml` to
+   world-readable, no-one-writable. The gateway worker (uid 10000)
+   reads it fine; nothing in the pod — including root processes — can
+   modify it without a deliberate `chmod +w` first. Defense-in-depth
+   against bugs or new code paths that forget to check `is_managed()`.
+
+`honcho.json` is **not** locked down — it stays `0640 hermes:hermes`,
+writable by the Honcho plugin. The Honcho client legitimately persists
+peer metadata at runtime; only `config.yaml` is fully immutable.
+
+**To change `config.yaml` values:** edit `manifests/config.yaml.tpl`,
+commit, push (or `kubectl apply -k manifests/`). The Kustomize content
+hash changes → ConfigMap rotates → pod rolls → initContainer re-renders.
+
+**What this prevents:** a long tail of "I ran `hermes config set ...`
+inside the pod as root and now the gateway can't read its own config"
+failures. Without HERMES_MANAGED, root inside the pod can rewrite
+`/opt/data/config.yaml` as `0600 root:root`, locking out the gateway
+worker (uid 10000) and silently falling back to the default config
+(which has no LLM provider, breaking Discord / API / everything).
+
 ## The edit loop
 
 ### Editing a template
