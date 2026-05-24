@@ -50,6 +50,17 @@ spec:
               sed -e "s|@HERMES_PEER_NAME@|${HERMES_PEER_NAME:-default-user}|g" \
                   /seed/honcho.json.tpl > /opt/data/honcho.json
               echo "wrote /opt/data/honcho.json (peerName=${HERMES_PEER_NAME:-default-user})"
+
+              # Normalize ownership + perms on both rendered files. Without this,
+              # whoever runs the initContainer (root) leaves the files as root:root
+              # 0600 — which is fine while the main container also runs as root,
+              # but becomes a silent footgun the moment anything runs as the
+              # hermes user (UID 10000) and falls back to default config.
+              # Explicit chown/chmod keeps the contract predictable regardless of
+              # who reads them.
+              chown 10000:10000 /opt/data/config.yaml /opt/data/honcho.json
+              chmod 0640        /opt/data/config.yaml /opt/data/honcho.json
+              echo "normalized: 0640 hermes:hermes on both files"
           env:
             - name: LITELLM_BASE_URL
               valueFrom:
