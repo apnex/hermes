@@ -45,18 +45,11 @@ memory:
   user_char_limit: 2000
   provider: honcho
 
-# Honcho self-hosted in-cluster — AUTH_USE_AUTH=false on the server,
-# so no API key needed. recallMode=hybrid gives auto context injection
-# AND the honcho_* tools (profile/search/context/reasoning/conclude).
+# Honcho — only the transport-level bootstrap lives here. All plugin
+# tuning (recallMode, cadences, depth, reasoning level, peer pinning,
+# write frequency) lives in /opt/data/honcho.json, rendered from
+# manifests/honcho.json.tpl by the seed-config initContainer. The plugin
+# reads honcho.json directly; this block exists only so an unconfigured
+# install can still find the server URL before the wizard runs.
 honcho:
-  baseUrl: http://honcho.honcho.svc.cluster.local:8000
-  workspace: default
-  apiKey: ""
-  recallMode: hybrid
-  saveMessages: true
-  writeFrequency: async
-  contextCadence: 1
-  dialecticCadence: 2
-  dialecticReasoningLevel: low
-  dialecticDynamic: true
-  sessionStrategy: per-session
+  base_url: http://honcho.honcho.svc.cluster.local:8000

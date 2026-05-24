@@ -13,3 +13,4 @@ configMapGenerator:
   - name: hermes-config
     files:
       - config.yaml.tpl
+      - honcho.json.tpl

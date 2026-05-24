@@ -33,14 +33,23 @@ spec:
             - /bin/sh
             - -c
             - |
-              # Always regenerate config.yaml from the template + Secret values.
-              # The Secret is the source of truth for this deployment;
-              # runtime mutations are not persisted across pod restarts.
+              # Always regenerate config.yaml AND honcho.json from templates
+              # + Secret values. The Git templates are the source of truth
+              # for this deployment; runtime mutations to either file are
+              # not persisted across pod restarts.
               sed -e "s|@LITELLM_BASE_URL@|${LITELLM_BASE_URL}|g" \
                   -e "s|@LITELLM_MODEL@|${LITELLM_MODEL}|g" \
                   -e "s#@LITELLM_API_KEY@#${LITELLM_API_KEY}#g" \
                   /seed/config.yaml.tpl > /opt/data/config.yaml
               echo "wrote /opt/data/config.yaml"
+
+              # honcho.json — Honcho plugin's native config. Owned by the
+              # plugin (NOT hermes-core). HERMES_PEER_NAME defaults to
+              # 'default-user' if unset, so a fresh deploy without the
+              # Secret key still produces a valid file.
+              sed -e "s|@HERMES_PEER_NAME@|${HERMES_PEER_NAME:-default-user}|g" \
+                  /seed/honcho.json.tpl > /opt/data/honcho.json
+              echo "wrote /opt/data/honcho.json (peerName=${HERMES_PEER_NAME:-default-user})"
           env:
             - name: LITELLM_BASE_URL
               valueFrom:
@@ -57,6 +66,15 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: LITELLM_API_KEY
+            # Honcho peer identity. Optional Secret key — fresh deployers
+            # who haven't set this get peerName="default-user" in honcho.json,
+            # which is a valid (if generic) starting point.
+            - name: HERMES_PEER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: HERMES_PEER_NAME
+                  optional: true
           volumeMounts:
             - name: data
               mountPath: /opt/data
