@@ -59,6 +59,7 @@ RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache \
       discord.py \
       PyNaCl \
       edge-tts \
+      honcho-ai \
       davey
 
 USER root
