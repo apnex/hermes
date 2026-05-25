@@ -45,6 +45,15 @@ memory:
   user_char_limit: 2000
   provider: honcho
 
+# Skills — local /opt/data/skills/ is always scanned first. The
+# external_dirs entry below adds a read-only root populated by the
+# skill-sync initContainer (see manifests/skill-sync/), which clones
+# a SKILL.md-tree repo (default apnex/mission-kit) and resolves
+# wanted bundles into a concrete skill subset.
+skills:
+  external_dirs:
+    - /opt/data/extra-skills
+
 # Honcho — only the transport-level bootstrap lives here. All plugin
 # tuning (recallMode, cadences, depth, reasoning level, peer pinning,
 # write frequency) lives in /opt/data/honcho.json, rendered from

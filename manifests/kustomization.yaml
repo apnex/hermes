@@ -14,3 +14,13 @@ configMapGenerator:
     files:
       - config.yaml.tpl
       - honcho.json.tpl
+  # hermes-skill-sync — script + manifest for the agent-agnostic
+  # GitOps skill loader. The script clones a SKILL.md-tree repo
+  # (e.g. apnex/mission-kit), resolves the wanted-bundles manifest
+  # into a concrete skill list, and writes the filtered subset to
+  # /opt/data/extra-skills/. See manifests/skill-sync/ for the
+  # script source and the operator-editable bundle manifest.
+  - name: hermes-skill-sync
+    files:
+      - skill-sync/skill-sync.sh
+      - skill-sync/wanted-bundles.yaml

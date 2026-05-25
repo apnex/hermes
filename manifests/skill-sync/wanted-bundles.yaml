@@ -1,0 +1,17 @@
+# wanted-bundles.yaml — operator declares which skill bundles + extra
+# skills should be available to this Hermes instance. The skill-sync
+# initContainer reads this manifest, resolves bundles against the
+# configured source repo, and writes the filtered skill subset to
+# /opt/data/extra-skills/ — where Hermes reads via skills.external_dirs.
+#
+# Bundles are agent-agnostic role compositions defined in the source
+# repo's bundles/<name>.yaml. Extra skills are individual skill names
+# pulled regardless of bundle membership.
+#
+# Source: apnex/mission-kit (overridable via SKILL_SYNC_REPO env on
+# the initContainer).
+
+bundles:
+  - nanoprobe
+
+extra_skills: []

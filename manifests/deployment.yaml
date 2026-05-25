@@ -95,6 +95,38 @@ spec:
               mountPath: /opt/data
             - name: config-tpl
               mountPath: /seed
+        # skill-sync — agent-agnostic GitOps skill loader.
+        # Clones a SKILL.md-tree repo (e.g. apnex/mission-kit), resolves
+        # the wanted-bundles manifest into a concrete skill list, and
+        # writes the filtered subset to /opt/data/extra-skills/.
+        # Hermes reads from there via skills.external_dirs in config.yaml.
+        #
+        # Best-effort: missing skills are logged and skipped; only a total
+        # resolution failure (zero skills found) blocks pod start. If the
+        # source repo is unreachable, the previous /opt/data/extra-skills/
+        # snapshot is left in place (no rewrite happens before the clone
+        # succeeds), so transient github outages don't kill the pod.
+        - name: skill-sync
+          image: alpine/git:2.45.2
+          command:
+            - /bin/sh
+            - /seed-skill-sync/skill-sync.sh
+          env:
+            - name: SKILL_SYNC_REPO
+              value: "https://github.com/apnex/mission-kit.git"
+            - name: SKILL_SYNC_REF
+              value: "main"
+            - name: SKILL_SYNC_MANIFEST
+              value: "/seed-skill-sync/wanted-bundles.yaml"
+            - name: SKILL_SYNC_TARGET
+              value: "/opt/data/extra-skills"
+            - name: SKILL_SYNC_OWNER
+              value: "10000:10000"
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: skill-sync-tpl
+              mountPath: /seed-skill-sync
         # stage-ssh-key — copy the host SSH key from its projected volume
         # (which fsGroup relaxes to 0440 — OpenSSH refuses) into an emptyDir
         # with explicit 0400 perms + hermes:hermes ownership. The emptyDir's
@@ -230,6 +262,14 @@ spec:
         - name: config-tpl
           configMap:
             name: hermes-config
+        # skill-sync — ConfigMap carrying the loader script + the
+        # wanted-bundles manifest. Both are GitOps-managed in
+        # manifests/skill-sync/; kustomize bundles them into the
+        # 'hermes-skill-sync' ConfigMap (see kustomization.yaml).
+        - name: skill-sync-tpl
+          configMap:
+            name: hermes-skill-sync
+            defaultMode: 0555
         # PipeWire / Pulse runtime directory from the host. Single-node
         # only — for multi-node, hermes must be pinned (nodeSelector) to
         # the node running PipeWire under UID 1000.
