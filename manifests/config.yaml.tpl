@@ -43,7 +43,7 @@ memory:
   user_profile_enabled: true
   memory_char_limit: 3000
   user_char_limit: 2000
-  provider: honcho
+  provider: honcho-tuned
 
 # Skills — local /opt/data/skills/ is always scanned first. The
 # external_dirs entry below adds a read-only root populated by the

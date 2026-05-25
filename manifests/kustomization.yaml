@@ -24,3 +24,14 @@ configMapGenerator:
     files:
       - skill-sync/skill-sync.sh
       - skill-sync/wanted-bundles.yaml
+  # hermes-plugin-sync — script + manifest for the GitOps plugin loader.
+  # The script clones a Hermes plugin repo (e.g. apnex/hermes-plugins),
+  # resolves the wanted-plugins manifest into a concrete plugin list,
+  # and writes the filtered subset to /opt/data/plugins/. Hermes's
+  # memory plugin loader then auto-discovers plugins from there via
+  # $HERMES_HOME/plugins/<name>/. See manifests/plugin-sync/ for the
+  # script source and the operator-editable plugin manifest.
+  - name: hermes-plugin-sync
+    files:
+      - plugin-sync/plugin-sync.sh
+      - plugin-sync/wanted-plugins.yaml

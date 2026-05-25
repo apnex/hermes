@@ -127,6 +127,42 @@ spec:
               mountPath: /opt/data
             - name: skill-sync-tpl
               mountPath: /seed-skill-sync
+        # plugin-sync — GitOps Hermes plugin loader.
+        # Clones a Hermes plugin repo (e.g. apnex/hermes-plugins),
+        # resolves the wanted-plugins manifest into a concrete plugin
+        # list, and writes the filtered subset to /opt/data/plugins/.
+        # Hermes's memory plugin loader then auto-discovers plugins
+        # from $HERMES_HOME/plugins/<name>/ at startup.
+        #
+        # Pinned to v1.0.0 (not main) for production-grade reproducibility.
+        # Bump PLUGINS_REF here in Git when a new plugin release ships.
+        #
+        # Best-effort: missing plugins are logged and skipped; only a
+        # total resolution failure (zero plugins found) blocks pod start.
+        # If the source repo is unreachable, the previous
+        # /opt/data/plugins/ snapshot is left in place (no rewrite before
+        # clone succeeds), so transient github outages don't kill the pod.
+        - name: plugin-sync
+          image: alpine/git:2.45.2
+          command:
+            - /bin/sh
+            - /seed-plugin-sync/plugin-sync.sh
+          env:
+            - name: PLUGINS_REPO
+              value: "https://github.com/apnex/hermes-plugins.git"
+            - name: PLUGINS_REF
+              value: "v1.0.0"
+            - name: PLUGINS_MANIFEST
+              value: "/seed-plugin-sync/wanted-plugins.yaml"
+            - name: PLUGINS_TARGET
+              value: "/opt/data/plugins"
+            - name: PLUGINS_OWNER
+              value: "10000:10000"
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: plugin-sync-tpl
+              mountPath: /seed-plugin-sync
         # stage-ssh-key — copy the host SSH key from its projected volume
         # (which fsGroup relaxes to 0440 — OpenSSH refuses) into an emptyDir
         # with explicit 0400 perms + hermes:hermes ownership. The emptyDir's
@@ -269,6 +305,14 @@ spec:
         - name: skill-sync-tpl
           configMap:
             name: hermes-skill-sync
+            defaultMode: 0555
+        # plugin-sync — ConfigMap carrying the loader script + the
+        # wanted-plugins manifest. Both are GitOps-managed in
+        # manifests/plugin-sync/; kustomize bundles them into the
+        # 'hermes-plugin-sync' ConfigMap (see kustomization.yaml).
+        - name: plugin-sync-tpl
+          configMap:
+            name: hermes-plugin-sync
             defaultMode: 0555
         # PipeWire / Pulse runtime directory from the host. Single-node
         # only — for multi-node, hermes must be pinned (nodeSelector) to

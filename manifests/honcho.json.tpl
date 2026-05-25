@@ -22,6 +22,27 @@
   "dialecticDepth": 3,
   "dialecticReasoningLevel": "medium",
 
+  "_comment_tier1": "honcho-tuned v1.0.0 — Tier 1 distillation block. Controls the <distillations> XML block injected at the top of <memory-context>. Keys use camelCase (read by HonchoClientConfig.from_global_config in honcho-tuned/client.py).",
+  "distillation": {
+    "enabled": true,
+    "maxPerLevelUser": 10,
+    "maxPerLevelAi": 10,
+    "maxContradictions": 5,
+    "maxDeductive": 5
+  },
+
+  "_comment_tier3a": "honcho-tuned v1.0.0 — Tier 3a configurable dialectic prompts. Templates support {query} and {peer} substitution. reasoning_levels keyed by minimal|low|medium|high|max — falls back to 'default', then raw query. The reasoning_levels key uses snake_case to match session.py:_apply_dialectic_template.",
+  "dialecticPrompts": {
+    "default": "What does the user believe about this topic?",
+    "reasoning_levels": {
+      "minimal": "Give the single most relevant fact about {peer}.",
+      "low": "Briefly answer: {query}",
+      "medium": "Answer {query} citing 2-3 supporting observations.",
+      "high": "Reason through {query} across observations, flag contradictions.",
+      "max": "Audit-level: enumerate every relevant observation and synthesize."
+    }
+  },
+
   "_defaults_rationale": {
     "contextCadence_10": "Refresh base context every 10 turns. Halves token churn vs SDK default of 5. Profile is stable enough that mid-session refresh isn't critical.",
     "contextTokens_800": "Hard cap on auto-injected memory block. Forces Honcho to send synthesized representation, not raw observation log. Default 2000 produces 4KB+ firehoses on active peers.",

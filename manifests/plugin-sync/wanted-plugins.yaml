@@ -1,0 +1,14 @@
+# wanted-plugins.yaml — operator declares which Hermes plugins should be
+# available to this instance. The plugin-sync initContainer reads this
+# manifest, clones the configured source repo, and writes the filtered
+# plugin subset to /opt/data/plugins/ — where Hermes's memory plugin
+# loader auto-discovers them via $HERMES_HOME/plugins/<name>/.
+#
+# Plugins are top-level directories in the source repo. Each must be a
+# valid Hermes plugin (plugin.yaml + __init__.py + module code).
+#
+# Source: apnex/hermes-plugins (overridable via PLUGINS_REPO env on the
+# initContainer).
+
+plugins:
+  - honcho-tuned
