@@ -261,10 +261,17 @@ spec:
               mountPath: /opt/data
             - name: pulse-socket
               mountPath: /run/user/1000
-            # Whole /root from the host bind-mounted at the same path
-            # so file ops and ssh-execed commands see the same paths.
+            # Host /root bind-mounted at /host (NOT /root) for namespace
+            # clarity. Rationale: the in-pod root user's $HOME is /root and
+            # the operator's host repos also live under /root on obpc.
+            # Mounting at /root would collide the two and make every path
+            # ambiguous ("is this pod-local or host-bind?"). Mounting at
+            # /host makes the source explicit: /host/kate, /host/mission-kit,
+            # /host/hermes-plugins, etc. are unambiguously the host's tree.
+            # Translation rule for cross-side references: /host/<x> in pod
+            # == /root/<x> on host.
             - name: host-root
-              mountPath: /root
+              mountPath: /host
             # Bot's private SSH key. Staged into an emptyDir by the
             # stage-ssh-key initContainer with explicit 0400 perms so
             # OpenSSH accepts it (fsGroup would otherwise relax the
@@ -321,8 +328,10 @@ spec:
           hostPath:
             path: /run/user/1000
             type: Directory
-        # Host /root bind-mount — gives the bot direct file r/w access
-        # to all the operator's projects. Single-node only.
+        # Host /root bind-mount source. Mounted into the container at
+        # /host (see container.volumeMounts for the rationale). Gives the
+        # bot direct file r/w access to all the operator's projects under
+        # /root on obpc. Single-node only.
         - name: host-root
           hostPath:
             path: /root
