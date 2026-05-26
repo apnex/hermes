@@ -1,0 +1,9 @@
+# Credentials and secrets must never be committed.
+# These belong in hermes-secrets via ./set-secret, sourced from
+# host env at apply time (see manifests/README.md "Secret hermes-secrets").
+.env
+.env.*
+*.token
+gh-token*
+*-token
+secrets.local.*

@@ -232,6 +232,19 @@ spec:
                   name: hermes-secrets
                   key: DISCORD_ALLOWED_USERS
                   optional: true
+            # GitHub auth — mirrors the host's gh auth, enabling `gh` CLI calls
+            # and authenticated git push from inside the pod. Sourced from
+            # hermes-secrets via ./set-secret; pod starts cleanly without it
+            # (git operations against private repos will simply fail until
+            # the token is supplied). `gh auth setup-git` runs at container
+            # start (see image/Dockerfile) and wires git's credential helper
+            # to use $GH_TOKEN automatically.
+            - name: GH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-secrets
+                  key: GH_TOKEN
+                  optional: true
             # Audio I/O — talk to PipeWire's Pulse socket on the host.
             # Host UID 1000 (apnex) runs pipewire-pulse; the socket at
             # /run/user/1000/pulse/native is world-rw, so the container

@@ -32,10 +32,28 @@ RUN apt-get update \
       alsa-utils \
       curl \
       ca-certificates \
+      gh \
  && curl -fsSL -o /usr/local/bin/kubectl \
       "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
  && chmod +x /usr/local/bin/kubectl \
  && rm -rf /var/lib/apt/lists/*
+
+# Wire git's HTTPS credential helper to gh, system-wide. With $GH_TOKEN set
+# in the pod env (sourced from hermes-secrets), `git push` to github.com
+# Just Works without a per-pod `gh auth login`. The helper lives in
+# /etc/gitconfig so it survives the hermes user's $HOME being mounted
+# from the PVC.
+#
+# Also sets a system-wide author identity so commits from any hermes pod
+# attribute to a recognisable bot identity (the GH_TOKEN already maps the
+# push to the owning GitHub account; this gives `git log` audit clarity
+# for "which commits came from a hermes pod").
+RUN git config --system credential.https://github.com.helper '' \
+ && git config --system --add credential.https://github.com.helper '!gh auth git-credential' \
+ && git config --system credential.https://gist.github.com.helper '' \
+ && git config --system --add credential.https://gist.github.com.helper '!gh auth git-credential' \
+ && git config --system user.name 'hermes' \
+ && git config --system user.email 'kate@apnex.local'
 
 # Wrapper: `nuc <command>` SSHes back to the host as root, reading the bot's
 # private key from /etc/hermes-host-ssh/id_ed25519 (Secret-mounted, mode 0400).
