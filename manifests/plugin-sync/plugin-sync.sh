@@ -12,7 +12,7 @@
 #
 # Inputs (env):
 #   PLUGINS_REPO       git URL of the source repo (default: apnex/hermes-plugins)
-#   PLUGINS_REF        git ref to pull (default: v1.0.0 — pinned for prod)
+#   PLUGINS_REF        git ref to pull (default: v1.0.1 — pinned for prod)
 #   PLUGINS_MANIFEST   path to wanted-plugins.yaml (required)
 #   PLUGINS_TARGET     output directory (default: /opt/data/plugins)
 #   PLUGINS_OWNER      chown target to this uid:gid (default: 10000:10000)
@@ -32,7 +32,7 @@ set -eu
 
 # --- defaults ---------------------------------------------------------
 PLUGINS_REPO="${PLUGINS_REPO:-https://github.com/apnex/hermes-plugins.git}"
-PLUGINS_REF="${PLUGINS_REF:-v1.0.0}"
+PLUGINS_REF="${PLUGINS_REF:-v1.0.1}"
 PLUGINS_MANIFEST="${PLUGINS_MANIFEST:?PLUGINS_MANIFEST is required}"
 PLUGINS_TARGET="${PLUGINS_TARGET:-/opt/data/plugins}"
 PLUGINS_OWNER="${PLUGINS_OWNER:-10000:10000}"

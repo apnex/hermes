@@ -134,7 +134,7 @@ spec:
         # Hermes's memory plugin loader then auto-discovers plugins
         # from $HERMES_HOME/plugins/<name>/ at startup.
         #
-        # Pinned to v1.0.0 (not main) for production-grade reproducibility.
+        # Pinned to v1.0.1 (not main) for production-grade reproducibility.
         # Bump PLUGINS_REF here in Git when a new plugin release ships.
         #
         # Best-effort: missing plugins are logged and skipped; only a
@@ -151,7 +151,7 @@ spec:
             - name: PLUGINS_REPO
               value: "https://github.com/apnex/hermes-plugins.git"
             - name: PLUGINS_REF
-              value: "v1.0.0"
+              value: "v1.0.1"
             - name: PLUGINS_MANIFEST
               value: "/seed-plugin-sync/wanted-plugins.yaml"
             - name: PLUGINS_TARGET

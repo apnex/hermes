@@ -16,7 +16,7 @@
   "sessionStrategy": "per-session",
 
   "contextCadence": 10,
-  "contextTokens": 800,
+  "contextTokens": 3000,
 
   "dialecticCadence": 10,
   "dialecticDepth": 3,
@@ -45,7 +45,7 @@
 
   "_defaults_rationale": {
     "contextCadence_10": "Refresh base context every 10 turns. Halves token churn vs SDK default of 5. Profile is stable enough that mid-session refresh isn't critical.",
-    "contextTokens_800": "Hard cap on auto-injected memory block. Forces Honcho to send synthesized representation, not raw observation log. Default 2000 produces 4KB+ firehoses on active peers.",
+    "contextTokens_3000": "Hard cap on auto-injected memory block. Raised from 800 to 3000 (12KB) in v1.0.1 to fit user+ai cards (~3.5KB) + distillation blocks (~7KB) + headroom; the previous 800-token budget dropped distillations and representation entirely, leaving only peer cards.  Synthesized representation still gets trimmed first under pressure — the priority order is (1) representation/ai_representation, (2) summary, (3) inductive sub-tails, (4) deductive sub-tails.  Contradictions and peer_cards are never trimmed.",
     "dialecticCadence_10": "Fire dialectic .chat() reasoning every 10 turns. Extra LLM round-trip; this cadence balances quality vs cost.",
     "dialecticDepth_3": "audit + synthesis + reconciliation. Reconciliation pass de-dupes and resolves contradictions in derived conclusions; the surface for filtering meta-chatter ('user discussed X') vs real preferences ('user prefers X').",
     "dialecticReasoningLevel_medium": "Auto-escalates to high via reasoning_heuristic when needed. Bump to high only if depth=3 reconciliation fails to suppress meta-chatter dupes.",
