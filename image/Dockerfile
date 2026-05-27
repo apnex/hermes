@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 # Hermes agent + local voice (sounddevice capture + faster-whisper STT).
 #
 # Adds the optional audio stack the upstream image does not ship:
