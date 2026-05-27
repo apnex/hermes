@@ -20,12 +20,15 @@ spec:
       # cluster-admin SA — kubectl in pod auto-detects in-cluster config
       # via the auto-mounted token at /var/run/secrets/kubernetes.io/...
       serviceAccountName: hermes-admin
-      # fsGroup 10000 (= hermes gid) so Secret-mounted files (the SSH key)
-      # are group-readable by the bot. OnRootMismatch avoids recursive chown
-      # on every restart for the existing PVC contents.
+      # Run as root (UID 0) so the pod can author commits directly in repos
+      # mounted from the host /root at /host. The pod is already a privileged
+      # peer (cluster-admin kubectl, host SSH key, GitHub PAT) — UID 10000
+      # added no real boundary while blocking in-pod GitOps authoring.
+      # (Previously: fsGroup 10000 / OnRootMismatch for Secret-mounted SSH key
+      # readability — moot now that the container runs as root.)
       securityContext:
-        fsGroup: 10000
-        fsGroupChangePolicy: OnRootMismatch
+        runAsUser: 0
+        runAsGroup: 0
       initContainers:
         - name: seed-config
           image: busybox:1.36
@@ -179,13 +182,14 @@ spec:
             - -c
             - |
               set -e
-              # chown the staging dir so fsGroup OnRootMismatch leaves it alone.
-              chown 10000:10000 /stage
-              chmod 0700        /stage
+              # Main container runs as UID 0 (see pod securityContext); stage
+              # the host SSH key as root:root so OpenSSH accepts the 0400 mode.
+              chown 0:0 /stage
+              chmod 0700 /stage
               if [ -f /seed-ssh/id_ed25519 ]; then
-                install -m 0400 -o 10000 -g 10000 \
+                install -m 0400 -o 0 -g 0 \
                   /seed-ssh/id_ed25519 /stage/id_ed25519
-                echo "staged host SSH key at /stage/id_ed25519 (0400 hermes:hermes)"
+                echo "staged host SSH key at /stage/id_ed25519 (0400 root:root)"
               else
                 echo "no host SSH key in Secret — nuc wrapper will be inert"
               fi
