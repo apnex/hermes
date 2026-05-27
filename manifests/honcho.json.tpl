@@ -22,11 +22,17 @@
   "dialecticDepth": 3,
   "dialecticReasoningLevel": "medium",
 
+  "_comment_observation": "honcho-tuned v1.0.2 — granular observation control. Replaces the legacy 'unified' preset (which forced ai_observe_me=false). With ai.observeMe=true, Honcho derives a self-representation and self-card for the 'hermes' peer, enabling <ai_representation> and <ai_card> injection. user.observeOthers stays false so the user-side representation does NOT absorb AI output as user beliefs. maxPerLevelAi lowered from 10 to 5 to bound noise from procedural AI narrative until signal is validated.",
+  "observation": {
+    "user": { "observeMe": true,  "observeOthers": false },
+    "ai":   { "observeMe": true,  "observeOthers": true  }
+  },
+
   "_comment_tier1": "honcho-tuned v1.0.0 — Tier 1 distillation block. Controls the <distillations> XML block injected at the top of <memory-context>. Keys use camelCase (read by HonchoClientConfig.from_global_config in honcho-tuned/client.py).",
   "distillation": {
     "enabled": true,
     "maxPerLevelUser": 10,
-    "maxPerLevelAi": 10,
+    "maxPerLevelAi": 5,
     "maxContradictions": 5,
     "maxDeductive": 5
   },
