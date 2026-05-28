@@ -64,12 +64,17 @@ RUN git config --system credential.https://github.com.helper '' \
 RUN cat > /usr/local/bin/ssh-target <<'EOF' \
  && chmod +x /usr/local/bin/ssh-target
 #!/bin/bash
+# Host resolution chain: explicit SSH_TARGET_HOST overrides; otherwise
+# fall back to POD_HOST_IP (injected via Downward API: status.hostIP) —
+# the single-node pattern where the pod SSHes to its own host. Final
+# fallback is an unresolvable name so misconfiguration fails loudly.
+HOST="${SSH_TARGET_HOST:-${POD_HOST_IP:-unset.invalid}}"
 exec ssh \
   -i "${SSH_TARGET_KEY_PATH:-/etc/ssh-target/id_ed25519}" \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
   -o LogLevel=ERROR \
-  "${SSH_TARGET_USER:-root}@${SSH_TARGET_HOST:-unset.invalid}" "$@"
+  "${SSH_TARGET_USER:-root}@${HOST}" "$@"
 EOF
 
 USER hermes

@@ -203,7 +203,7 @@ spec:
               mountPath: /stage
       containers:
         - name: hermes
-          image: australia-southeast1-docker.pkg.dev/labops-389703/kate/hermes-agent:v2026.5.16-voice-2
+          image: australia-southeast1-docker.pkg.dev/labops-389703/kate/hermes-agent:v2026.5.16-voice-3
           imagePullPolicy: IfNotPresent
           args: ["gateway", "run"]
           ports:
@@ -254,6 +254,15 @@ spec:
                   name: hermes-config
                   key: SSH_TARGET_HOST
                   optional: true
+            # Downward API: the pod's own node IP. The ssh-target wrapper
+            # falls back to this when SSH_TARGET_HOST isn't explicitly set
+            # in hermes-config — the canonical single-node case (pod SSHes
+            # to its own host). Multi-node operators override by setting
+            # SSH_TARGET_HOST to a specific target.
+            - name: POD_HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
             - name: SSH_TARGET_KEY_PATH
               value: "/etc/ssh-target/id_ed25519"
             # Tell hermes-core it's running under external lifecycle management
