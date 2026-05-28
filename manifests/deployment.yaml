@@ -221,21 +221,6 @@ spec:
                 secretKeyRef:
                   name: hermes-secrets
                   key: API_SERVER_KEY
-            # Discord gateway — only activates if the Secret has the key.
-            - name: DISCORD_BOT_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: hermes-secrets
-                  key: DISCORD_BOT_TOKEN
-                  optional: true
-            # DM allowlist — comma-separated Discord user IDs. Without this
-            # the bot rejects every DM as unauthorized.
-            - name: DISCORD_ALLOWED_USERS
-              valueFrom:
-                secretKeyRef:
-                  name: hermes-secrets
-                  key: DISCORD_ALLOWED_USERS
-                  optional: true
             # GitHub auth — mirrors the host's gh auth, enabling `gh` CLI calls
             # and authenticated git push from inside the pod. Sourced from
             # hermes-secrets via ./set-secret; pod starts cleanly without it
@@ -249,14 +234,6 @@ spec:
                   name: hermes-secrets
                   key: GH_TOKEN
                   optional: true
-            # Audio I/O — talk to PipeWire's Pulse socket on the host.
-            # Host UID 1000 (apnex) runs pipewire-pulse; the socket at
-            # /run/user/1000/pulse/native is world-rw, so the container
-            # (running as hermes/UID 10000) can connect without a cookie.
-            - name: PULSE_SERVER
-              value: "unix:/run/user/1000/pulse/native"
-            - name: XDG_RUNTIME_DIR
-              value: "/run/user/1000"
             # Host shell — `nuc <cmd>` wrapper SSHes here as root.
             # Activates only when hermes-host-ssh-key Secret exists.
             - name: HERMES_HOST_SSH_TARGET
@@ -276,8 +253,6 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /opt/data
-            - name: pulse-socket
-              mountPath: /run/user/1000
             # Host /root bind-mounted at /host (NOT /root) for namespace
             # clarity. Rationale: the in-pod root user's $HOME is /root and
             # the operator's host repos also live under /root on obpc.
@@ -338,13 +313,6 @@ spec:
           configMap:
             name: hermes-plugin-sync
             defaultMode: 0555
-        # PipeWire / Pulse runtime directory from the host. Single-node
-        # only — for multi-node, hermes must be pinned (nodeSelector) to
-        # the node running PipeWire under UID 1000.
-        - name: pulse-socket
-          hostPath:
-            path: /run/user/1000
-            type: Directory
         # Host /root bind-mount source. Mounted into the container at
         # /host (see container.volumeMounts for the rationale). Gives the
         # bot direct file r/w access to all the operator's projects under
