@@ -203,7 +203,7 @@ spec:
               mountPath: /stage
       containers:
         - name: hermes
-          image: australia-southeast1-docker.pkg.dev/labops-389703/kate/hermes-agent:v2026.5.16-voice
+          image: australia-southeast1-docker.pkg.dev/labops-389703/kate/hermes-agent:v2026.5.16-voice-1
           imagePullPolicy: IfNotPresent
           args: ["gateway", "run"]
           ports:
@@ -238,8 +238,16 @@ spec:
                   optional: true
             # Host shell — `nuc <cmd>` wrapper SSHes here as root.
             # Activates only when hermes-host-ssh-key Secret exists.
-            - name: HERMES_HOST_SSH_TARGET
-              value: "root@192.168.1.250"
+            # HOST_SSH_TARGET is operator-supplied (per-env) via the
+            # hermes-config ConfigMap. Absent → nuc falls back to the
+            # built-in default in the image (which is the obpc NUC IP —
+            # only meaningful for that specific host).
+            - name: HOST_SSH_TARGET
+              valueFrom:
+                configMapKeyRef:
+                  name: hermes-config
+                  key: HOST_SSH_TARGET
+                  optional: true
             - name: HERMES_HOST_SSH_KEY_PATH
               value: "/etc/hermes-host-ssh/id_ed25519"
             # Tell hermes-core it's running under external lifecycle management

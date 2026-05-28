@@ -67,7 +67,7 @@ exec ssh \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
   -o LogLevel=ERROR \
-  "${HERMES_HOST_SSH_TARGET:-root@192.168.1.250}" "$@"
+  "${HOST_SSH_TARGET:-root@192.168.1.250}" "$@"
 EOF
 
 USER hermes
