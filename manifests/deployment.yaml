@@ -298,7 +298,7 @@ spec:
             claimName: hermes-data
         - name: config-tpl
           configMap:
-            name: hermes-config
+            name: hermes-templates
         # skill-sync — ConfigMap carrying the loader script + the
         # wanted-bundles manifest. Both are GitOps-managed in
         # manifests/skill-sync/; kustomize bundles them into the

@@ -8,9 +8,16 @@ resources:
   - deployment.yaml
   - service.yaml
   - serviceaccount.yaml
+  - init-credentials-job.yaml
 
 configMapGenerator:
-  - name: hermes-config
+  # hermes-templates — the two seed-config templates (config.yaml.tpl,
+  # honcho.json.tpl). The seed-config initContainer mounts this as a
+  # volume at /seed and renders both into /opt/data/ with placeholder
+  # substitution. Distinct from `hermes-config` (the operator-supplied
+  # ConfigMap with LITELLM_BASE_URL / LITELLM_MODEL / etc. — created
+  # out-of-band by set-secret).
+  - name: hermes-templates
     files:
       - config.yaml.tpl
       - honcho.json.tpl
