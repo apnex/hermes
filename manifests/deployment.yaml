@@ -69,28 +69,30 @@ spec:
               chmod 0640        /opt/data/honcho.json
               echo "normalized: config.yaml=0444 root:root (RO), honcho.json=0640 hermes:hermes"
           env:
+            # Config (non-sensitive) — sourced from the hermes-config ConfigMap.
             - name: LITELLM_BASE_URL
               valueFrom:
-                secretKeyRef:
-                  name: hermes-secrets
+                configMapKeyRef:
+                  name: hermes-config
                   key: LITELLM_BASE_URL
             - name: LITELLM_MODEL
               valueFrom:
-                secretKeyRef:
-                  name: hermes-secrets
+                configMapKeyRef:
+                  name: hermes-config
                   key: LITELLM_MODEL
+            # Credentials (sensitive) — sourced from the hermes-credentials Secret.
             - name: LITELLM_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: hermes-secrets
+                  name: hermes-credentials
                   key: LITELLM_API_KEY
-            # Honcho peer identity. Optional Secret key — fresh deployers
+            # Honcho peer identity. Optional ConfigMap key — fresh deployers
             # who haven't set this get peerName="default-user" in honcho.json,
             # which is a valid (if generic) starting point.
             - name: HERMES_PEER_NAME
               valueFrom:
-                secretKeyRef:
-                  name: hermes-secrets
+                configMapKeyRef:
+                  name: hermes-config
                   key: HERMES_PEER_NAME
                   optional: true
           volumeMounts:
@@ -219,11 +221,11 @@ spec:
             - name: API_SERVER_KEY
               valueFrom:
                 secretKeyRef:
-                  name: hermes-secrets
+                  name: hermes-credentials
                   key: API_SERVER_KEY
             # GitHub auth — mirrors the host's gh auth, enabling `gh` CLI calls
             # and authenticated git push from inside the pod. Sourced from
-            # hermes-secrets via ./set-secret; pod starts cleanly without it
+            # hermes-credentials via ./set-secret; pod starts cleanly without it
             # (git operations against private repos will simply fail until
             # the token is supplied). `gh auth setup-git` runs at container
             # start (see image/Dockerfile) and wires git's credential helper
@@ -231,7 +233,7 @@ spec:
             - name: GH_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: hermes-secrets
+                  name: hermes-credentials
                   key: GH_TOKEN
                   optional: true
             # Host shell — `nuc <cmd>` wrapper SSHes here as root.
