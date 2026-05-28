@@ -176,7 +176,7 @@ spec:
         #
         # If the Secret doesn't exist (host-access opt-in not done yet), the
         # source file is absent and we just create an empty staging dir —
-        # `nuc` will fail at runtime but pod boots fine.
+        # `ssh-target` will fail at runtime but pod boots fine.
         - name: stage-ssh-key
           image: busybox:1.36
           command:
@@ -193,17 +193,17 @@ spec:
                   /seed-ssh/id_ed25519 /stage/id_ed25519
                 echo "staged host SSH key at /stage/id_ed25519 (0400 root:root)"
               else
-                echo "no host SSH key in Secret — nuc wrapper will be inert"
+                echo "no SSH key in Secret — ssh-target wrapper will be inert"
               fi
           volumeMounts:
-            - name: host-ssh-key-src
+            - name: ssh-target-key-src
               mountPath: /seed-ssh
               readOnly: true
-            - name: host-ssh-key-staged
+            - name: ssh-target-key-staged
               mountPath: /stage
       containers:
         - name: hermes
-          image: australia-southeast1-docker.pkg.dev/labops-389703/kate/hermes-agent:v2026.5.16-voice-1
+          image: australia-southeast1-docker.pkg.dev/labops-389703/kate/hermes-agent:v2026.5.16-voice-2
           imagePullPolicy: IfNotPresent
           args: ["gateway", "run"]
           ports:
@@ -236,20 +236,26 @@ spec:
                   name: hermes-credentials
                   key: GH_TOKEN
                   optional: true
-            # Host shell — `nuc <cmd>` wrapper SSHes here as root.
-            # Activates only when hermes-host-ssh-key Secret exists.
-            # HOST_SSH_TARGET is operator-supplied (per-env) via the
-            # hermes-config ConfigMap. Absent → nuc falls back to the
-            # built-in default in the image (which is the obpc NUC IP —
-            # only meaningful for that specific host).
-            - name: HOST_SSH_TARGET
+            # Host shell — `ssh-target <cmd>` wrapper SSHes to the
+            # configured host as the configured user, reading the SSH
+            # key from the ssh-target-key Secret-mounted path.
+            # All three vars are operator-supplied (per-env) via the
+            # hermes-config ConfigMap. Absent → ssh-target wrapper uses
+            # image-baked defaults (root@unset.invalid — fails loudly).
+            - name: SSH_TARGET_USER
               valueFrom:
                 configMapKeyRef:
                   name: hermes-config
-                  key: HOST_SSH_TARGET
+                  key: SSH_TARGET_USER
                   optional: true
-            - name: HERMES_HOST_SSH_KEY_PATH
-              value: "/etc/hermes-host-ssh/id_ed25519"
+            - name: SSH_TARGET_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: hermes-config
+                  key: SSH_TARGET_HOST
+                  optional: true
+            - name: SSH_TARGET_KEY_PATH
+              value: "/etc/ssh-target/id_ed25519"
             # Tell hermes-core it's running under external lifecycle management
             # (k3s + GitOps). All save_config / set_config_value / web-UI write
             # paths in hermes_cli/config.py gate on is_managed() and become a
@@ -278,8 +284,8 @@ spec:
             # stage-ssh-key initContainer with explicit 0400 perms so
             # OpenSSH accepts it (fsGroup would otherwise relax the
             # projected volume to 0440).
-            - name: host-ssh-key-staged
-              mountPath: /etc/hermes-host-ssh
+            - name: ssh-target-key-staged
+              mountPath: /etc/ssh-target
               readOnly: true
           resources:
             requests:
@@ -331,27 +337,28 @@ spec:
           hostPath:
             path: /root
             type: Directory
-        # SSH key for `nuc` wrapper (host-shell as root). Optional —
-        # pod boots without it; nuc commands fail until the operator
-        # provides HERMES_HOST_SSH_KEY via setup-host-access.sh + set-secret.
+        # SSH key for the `ssh-target` wrapper. Optional — pod boots
+        # without it; ssh-target commands fail until the operator
+        # provides SSH_TARGET_KEY via set-secret (which creates the
+        # ssh-target-key Secret with the PEM under data key id_ed25519).
         #
-        # Two-volume pattern: the projected `host-ssh-key-src` mounts the
-        # raw Secret (subject to fsGroup, so it ends up 0440 — unusable);
-        # the stage-ssh-key initContainer copies it into the emptyDir
-        # `host-ssh-key-staged` with explicit 0400 perms that survive
-        # fsGroup's OnRootMismatch policy. Main container mounts the
-        # staged emptyDir, not the projected source.
-        - name: host-ssh-key-src
+        # Two-volume pattern: the projected `ssh-target-key-src` mounts
+        # the raw Secret (subject to fsGroup, so it ends up 0440 —
+        # unusable); the stage-ssh-key initContainer copies it into the
+        # emptyDir `ssh-target-key-staged` with explicit 0400 perms that
+        # survive fsGroup's OnRootMismatch policy. Main container mounts
+        # the staged emptyDir, not the projected source.
+        - name: ssh-target-key-src
           projected:
             defaultMode: 0400
             sources:
               - secret:
-                  name: hermes-host-ssh-key
+                  name: ssh-target-key
                   optional: true
                   items:
                     - key: id_ed25519
                       path: id_ed25519
                       mode: 0400
-        - name: host-ssh-key-staged
+        - name: ssh-target-key-staged
           emptyDir:
             medium: Memory

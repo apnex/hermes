@@ -56,18 +56,20 @@ RUN git config --system credential.https://github.com.helper '' \
  && git config --system user.name 'hermes' \
  && git config --system user.email 'kate@apnex.local'
 
-# Wrapper: `nuc <command>` SSHes back to the host as root, reading the bot's
-# private key from /etc/hermes-host-ssh/id_ed25519 (Secret-mounted, mode 0400).
-# Host key checking disabled — single-user LAN, acceptable trade-off.
-RUN cat > /usr/local/bin/nuc <<'EOF' \
- && chmod +x /usr/local/bin/nuc
+# Wrapper: `ssh-target <command>` SSHes to the configured host as the
+# configured user, reading the bot's private key from the Secret-mounted
+# path. All three vars are operator-supplied; sensible-but-broken
+# defaults exist only so a misconfigured pod fails loudly instead of
+# silently. Host key checking disabled — single-user LAN trade-off.
+RUN cat > /usr/local/bin/ssh-target <<'EOF' \
+ && chmod +x /usr/local/bin/ssh-target
 #!/bin/bash
 exec ssh \
-  -i "${HERMES_HOST_SSH_KEY_PATH:-/etc/hermes-host-ssh/id_ed25519}" \
+  -i "${SSH_TARGET_KEY_PATH:-/etc/ssh-target/id_ed25519}" \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
   -o LogLevel=ERROR \
-  "${HOST_SSH_TARGET:-root@192.168.1.250}" "$@"
+  "${SSH_TARGET_USER:-root}@${SSH_TARGET_HOST:-unset.invalid}" "$@"
 EOF
 
 USER hermes
