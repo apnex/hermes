@@ -1,0 +1,23 @@
+# Build the hermes+voice image on Cloud Build.
+#
+# BuildKit is required: the Dockerfile uses `# syntax=docker/dockerfile:1.4`
+# heredocs, which the default (non-BuildKit) docker builder cannot parse.
+# `gcloud builds submit --tag` does NOT enable BuildKit, so we drive
+# `docker build` explicitly with DOCKER_BUILDKIT=1.
+#
+# Usage:
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=_IMAGE=<registry>/<repo>/hermes-agent:<tag> .
+#
+# _IMAGE is left unset here on purpose — the registry path is deployment
+# specific, so it is supplied at submit time rather than committed.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - -c
+      - docker build -t "$_IMAGE" .
+images:
+  - $_IMAGE

@@ -15,10 +15,11 @@
 #   - davey               DAVE E2EE library — discord.py >= 2.5 requires it
 #                         for voice channel support (without it: "voice will NOT be supported")
 #
-# System tooling for "trusted dev on the NUC" capability:
-#   - kubectl             cluster-admin via auto-mounted ServiceAccount token
-#   - openssh-client      (already in upstream) for the `nuc` host shell wrapper
-#   - /usr/local/bin/nuc  wrapper: `nuc <cmd>` SSHes back to the host as root
+# System tooling for "trusted dev on the host" capability:
+#   - kubectl                   cluster-admin via auto-mounted ServiceAccount token
+#   - openssh-client            (already in upstream) for the ssh-target wrapper
+#   - /usr/local/bin/ssh-target wrapper: `ssh-target <cmd>` SSHes back to the
+#                               host, normalising non-root logins to sudo
 #
 # Note: upstream strips `pip` from the venv to keep it lean — use `uv` (which is
 # pre-installed at /usr/local/bin/uv) for any additional Python packages.
@@ -58,9 +59,10 @@ RUN git config --system credential.https://github.com.helper '' \
 
 # Wrapper: `ssh-target <command>` SSHes to the configured host as the
 # configured user, reading the bot's private key from the Secret-mounted
-# path. All three vars are operator-supplied; sensible-but-broken
-# defaults exist only so a misconfigured pod fails loudly instead of
-# silently. Host key checking disabled — single-user LAN trade-off.
+# path. SSH_TARGET_{USER,HOST,KEY} are supplied by the platform shim
+# (on GCE: terraform + OS Login). Sensible-but-broken defaults exist only
+# so a misconfigured pod fails loudly. Host key checking disabled —
+# single-user LAN trade-off.
 RUN cat > /usr/local/bin/ssh-target <<'EOF' \
  && chmod +x /usr/local/bin/ssh-target
 #!/bin/bash
@@ -69,12 +71,19 @@ RUN cat > /usr/local/bin/ssh-target <<'EOF' \
 # the single-node pattern where the pod SSHes to its own host. Final
 # fallback is an unresolvable name so misconfiguration fails loudly.
 HOST="${SSH_TARGET_HOST:-${POD_HOST_IP:-unset.invalid}}"
+USER="${SSH_TARGET_USER:-root}"
+# Privilege normalisation: OS Login lands us as a non-root SA user
+# (sa_<unique_id>); a vanilla host lands us as root. Prefix sudo for any
+# non-root user so callers run privileged identically on every platform —
+# the platform delta (who we land as) never leaks to the caller.
+PFX=""
+[ "$USER" = root ] || PFX="sudo"
 exec ssh \
   -i "${SSH_TARGET_KEY_PATH:-/etc/ssh-target/id_ed25519}" \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
   -o LogLevel=ERROR \
-  "${SSH_TARGET_USER:-root}@${HOST}" "$@"
+  "${USER}@${HOST}" $PFX "$@"
 EOF
 
 USER hermes

@@ -203,7 +203,7 @@ spec:
               mountPath: /stage
       containers:
         - name: hermes
-          image: australia-southeast1-docker.pkg.dev/labops-389703/kate/hermes-agent:v2026.5.16-voice-3
+          image: australia-southeast1-docker.pkg.dev/labops-389703/kate/hermes-agent:v2026.5.16-voice-4
           imagePullPolicy: IfNotPresent
           args: ["gateway", "run"]
           ports:
